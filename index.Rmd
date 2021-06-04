@@ -1,0 +1,58 @@
+---
+title: "DAta analysis of Peel Test"
+description: |
+  A new article created using the Distill format.
+author:
+  - name: Catalina
+    url: https://example.com/norajones
+    affiliation: Spacely Sprockets
+    affiliation_url: https://example.com/spacelysprokets
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(readxl)
+
+```
+
+
+# Loading the data
+
+```{r, include=FALSE, eval=FALSE}
+
+# Reading all sheet from excel
+path <- c('Data/T test -20210510_Hakim2.xls')
+Data <- lapply(excel_sheets(path), read_excel, path = path)
+
+nombres <- Data[[2]]$...1 %>% na.omit()
+nombres <- c("Inicial", "Parametros", nombres)
+
+Data %>% map() %>% names()
+# Colocando el 
+Data <- Data %>%  set_names(nombres[1:21]) %>% enframe("Type", "Data")
+
+
+Data %>% set_names()
+
+
+# List of data from the consortium
+UNIN  <- lapply(excel_sheets(file_names[1]), read_excel, path = file_names[1]) %>% In.depth.analysis(. , Partner = "UNIN")
+AIMEN <- lapply(excel_sheets(file_names[2]), read_excel, path = file_names[2]) %>% In.depth.analysis(. , Partner = "AIMEN")
+SCM  <- lapply(excel_sheets(file_names[3]), read_excel, path = file_names[3]) %>% In.depth.analysis(. , Partner = "SCM")
+UL  <- lapply(excel_sheets(file_names[5]), read_excel, path = file_names[5]) %>% In.depth.analysis(. , Partner = "UL")
+VERA  <- lapply(excel_sheets(file_names[6]), read_excel, path = file_names[6]) %>% In.depth.analysis(. , Partner = "VERA")
+
+
+```
+
+
+
+
+
+
+
+
+
