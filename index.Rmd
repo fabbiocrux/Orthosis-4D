@@ -15,44 +15,78 @@ output: distill::distill_article
 knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(readxl)
-
 ```
 
 
 # Loading the data
 
-```{r, include=FALSE, eval=FALSE}
+```{r, include=FALSE}
 
 # Reading all sheet from excel
 path <- c('Data/T test -20210510_Hakim2.xls')
 Data <- lapply(excel_sheets(path), read_excel, path = path)
 
+# Changing the names of the document
 nombres <- Data[[2]]$...1 %>% na.omit()
-nombres <- c("Inicial", "Parametros", nombres)
+nombres <- c("Inicial", "Parametros", nombres[11:26], "Parametros 2", "Resultado PLA - TPU", "Resultados PLA COPE")
 
-Data %>% map() %>% names()
-# Colocando el 
-Data <- Data %>%  set_names(nombres[1:21]) %>% enframe("Type", "Data")
+Data <- Data %>% set_names(nombres[1:21]) 
+
+# use magrittr function to filter the list
+Data <- Data %>% magrittr::extract(nombres[3:18]) # 
+
+# PUtting the rigth names columns to each test
+Data <- Data %>% map(~ .x %>% set_names("Course", "Force", 
+                                        "Allongement","Allongement nominal", "Temps", "Cycle"))
+
+# Deleting the first Four rowss  at each dataframe
+Data <- Data %>% map(~ .x %>% slice(4:n()))
+
+# Changing data as numeric to do stats
+Data <- Data %>% map(~ .x %>% modify_if(is.character, as.double))
+  
+# Creating the Dataframe of Analisys
+Data <- Data %>%   enframe("Sample", "Datos")
 
 
-Data %>% set_names()
+# Calculating the meadian value for each sample
+Data <- Data %>% mutate(Mean_value = map_dbl(Datos,  function(df) mean(df$Force)))
 
 
-# List of data from the consortium
-UNIN  <- lapply(excel_sheets(file_names[1]), read_excel, path = file_names[1]) %>% In.depth.analysis(. , Partner = "UNIN")
-AIMEN <- lapply(excel_sheets(file_names[2]), read_excel, path = file_names[2]) %>% In.depth.analysis(. , Partner = "AIMEN")
-SCM  <- lapply(excel_sheets(file_names[3]), read_excel, path = file_names[3]) %>% In.depth.analysis(. , Partner = "SCM")
-UL  <- lapply(excel_sheets(file_names[5]), read_excel, path = file_names[5]) %>% In.depth.analysis(. , Partner = "UL")
-VERA  <- lapply(excel_sheets(file_names[6]), read_excel, path = file_names[6]) %>% In.depth.analysis(. , Partner = "VERA")
+## Function to identify Young Modulus
+Young <- function(df) {
+  # Filtering the Dataframe
+  df <- df %>% filter(Course >= 1 & Course <= 30 ) # To validate the range
+  # Doing the linear model
+   model= lm(Force ~ Course, data = df)
+   E= coefficients(model)[[2]]
+  return(E)
+}
+  
+# Calculating the young Modulus
+Data <- Data %>% mutate(Young = map_dbl(Datos, Young))
 
+# Calculating the Max value of force
+Data <- Data %>% mutate(Max_force = map_dbl(Datos, function(Datos) max(Datos$Force)))
 
 ```
 
 
+# TAble summery
+```{r}
+library(rmarkdown)
+paged_table(Data %>% select(-Datos))
+```
 
 
+# Graph
+```{r}
 
-
-
-
+Data %>% 
+  ggplot(aes(x=Mean_value, y = Max_force )) +
+  geom_point(aes(color=Sample)) +
+  #facet_grid( .  ~  ) +
+  labs(y="Max Load (kN)", x="Mean value") +
+  coord_cartesian(ylim = c(1, 4))
+```
 
