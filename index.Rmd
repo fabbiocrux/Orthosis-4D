@@ -8,13 +8,16 @@ author:
     affiliation: ERPI
     affiliation_url: https://example.com/spacelysprokets
 date: "`r Sys.Date()`"
-output: distill::distill_article
+#output: distill::distill_article
+output: pdf_document
+always_allow_html: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(readxl)
+library (DescTools)
 ```
 
 
@@ -80,6 +83,24 @@ Young <- function(df) {
   
 # Calculating the young Modulus
 Data <- Data %>% mutate(Young = map_dbl(Datos, Young))
+
+
+## Calculating the AUC 
+
+Area_curva <- function(df) {
+  
+  #df <- Data$Datos[[1]] #Test
+  # Filtering the data
+  df <- df %>% filter(Course < 40)
+
+  # Calculating the area
+  area <-  AUC(df$Course, df$Force, from =0, to= 40, method = "step")
+  
+  return(area)
+}
+  
+# AUC
+Data <- Data %>% mutate(Bonding_energie = map_dbl(Datos, Area_curva))
 
 
 # Calculating the young Modulus
