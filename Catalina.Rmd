@@ -1,0 +1,131 @@
+---
+title: "DAta analysis of Peel Test"
+description: |
+  A new article created using the Distill format.
+author:
+  - name: Catalina
+    url: https://example.com/norajones
+    affiliation: ERPI
+    affiliation_url: https://example.com/spacelysprokets
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(readxl)
+library (DescTools)
+```
+
+
+# Loading the data
+
+```{r, include=FALSE}
+
+# Reading all sheet from excel
+path <- c('Data/T test -20210510_Hakim2.xls')
+Data <- lapply(excel_sheets(path), read_excel, path = path)
+
+# Changing the names of the document
+nombres <- Data[[2]]$...1 %>% na.omit()
+nombres <- c("Inicial", "Parametros", nombres[11:26], "Parametros 2", "Resultado PLA - TPU", "Resultados PLA COPE")
+
+Data <- Data %>% set_names(nombres[1:21]) 
+
+# use magrittr function to filter the list
+Data <- Data %>% magrittr::extract(nombres[3:18]) # 
+
+# PUtting the rigth names columns to each test
+Data <- Data %>% map(~ .x %>% set_names("Course", "Force","Allongement","Allongement nominal", "Temps", "Cycle"))
+
+# Deleting the first Three rowss  at each dataframe
+ Data <- Data %>% map(~ .x %>% slice(3:n()))
+
+# Changing data as numeric to do stats
+Data <- Data %>% map(~ .x %>% modify_if(is.character, as.double))
+  
+# Creating the Dataframe of Analisys
+Data <- Data %>%   enframe("Sample", "Datos")
+
+
+# Calculating the Max value of force
+Data <- Data %>% mutate(Max_force = map_dbl(Datos, function(df) max(df$Force)))
+
+
+# Calculating the meadian value for each sample
+Data <- Data %>% mutate(Force_Adhesion = map_dbl(Datos, function (df) median(df$Force)))
+
+## Calculating the AUC 
+Data <- Data %>% mutate(Bonding_energie = map_dbl(Datos, function (df) AUC(df$Course, df$Force, from =0, to= 40, method = "step")))
+
+
+## Function to identify Young Modulus
+Young <- function(df) {
+  # Filtering the Dataframe
+  F_max <- max(df$Force)
+  
+  df <- df %>% filter(Force >= -1 & Force <= F_max) # To validate the range
+  # Doing the linear model
+   model= lm(Force ~ Course, data = df)
+   E= coefficients(model)[[2]]
+  return(E)
+}
+
+
+```
+
+
+# TAble summery
+```{r}
+library(rmarkdown)
+paged_table(Data %>% select(-Datos))
+```
+
+
+# Graph
+```{r}
+
+Data %>% 
+  ggplot(aes(x= Force_Adhesion, y = Max_force )) +
+  geom_point(aes(color=Sample)) +
+  #facet_grid( .  ~  ) +
+  labs(y="Max Load (kN)", x="Mean value") +
+  coord_cartesian(ylim = c(1, 4))
+```
+
+# Line graph PLA- TPU 
+```{r}
+
+Data %>% 
+  ggplot ()+
+    geom_line(data = Data[[2]][[1]], mapping = aes (x= Course, y=Force,  color = "21.88")) +
+   geom_line(data = Data[[2]][[2]], mapping = aes (x= Course, y=Force, color = "21.88"))+
+  geom_line(data = Data[[2]][[3]], mapping = aes (x= Course, y=Force, color = "21.78"))+
+  geom_line(data = Data[[2]][[4]], mapping = aes (x= Course, y=Force, color = "21.83"))+
+ geom_line(data = Data[[2]][[5]], mapping = aes (x= Course, y=Force, color = "21.83"))+
+geom_line(data = Data[[2]][[6]], mapping = aes (x= Course, y=Force,color = "21.78"))+
+geom_line(data = Data[[2]][[7]], mapping = aes (x= Course, y=Force, color = "21.73"))+
+  geom_line(data = Data[[2]][[8]], mapping = aes (x= Course, y=Force, color = "21.73"))+
+  labs ( title = "PLA-TPU", y= "Load (N)", x="Extension (mm)")
+  
+  
+```
+
+#Line graph PLA-COPE
+
+```{r}
+
+Data %>% 
+    ggplot ()+
+    geom_line(data = Data[[2]][[9]], mapping = aes (x= Course, y=Force,  color = "21.88")) +
+   geom_line(data = Data[[2]][[10]], mapping = aes (x= Course, y=Force, color = "21.88"))+
+  geom_line(data = Data[[2]][[11]], mapping = aes (x= Course, y=Force, color = "21.83"))+
+  geom_line(data = Data[[2]][[12]], mapping = aes (x= Course, y=Force, color = "21.83"))+
+ geom_line(data = Data[[2]][[13]], mapping = aes (x= Course, y=Force, color = "21.78"))+
+geom_line(data = Data[[2]][[14]], mapping = aes (x= Course, y=Force,color = "21.78"))+
+geom_line(data = Data[[2]][[15]], mapping = aes (x= Course, y=Force, color = "21.73"))+
+  geom_line(data = Data[[2]][[16]], mapping = aes (x= Course, y=Force, color = "21.73"))+
+  labs ( title = "PLA-COPE", y= "Load (N)", x="Extension (mm)")
+```
+

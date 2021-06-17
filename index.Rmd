@@ -30,6 +30,7 @@ Data <- lapply(excel_sheets(path), read_excel, path = path)
 nombres <- Data[[2]]$...1 %>% na.omit()
 nombres <- c("Inicial", "Parametros", nombres[11:26], "Parametros 2", "Resultado PLA - TPU", "Resultados PLA COPE")
 
+# Colocando los nombres
 Data <- Data %>% set_names(nombres[1:21]) 
 
 # use magrittr function to filter the list
@@ -40,23 +41,37 @@ Data <- Data %>% map(~ .x %>% set_names("Course", "Force",
                                         "Allongement","Allongement nominal", "Temps", "Cycle"))
 
 # Deleting the first Four rowss  at each dataframe
-Data <- Data %>% map(~ .x %>% slice(4:n()))
+Data <- Data %>% map(~ .x %>% slice(3:n()))
 
 # Changing data as numeric to do stats
 Data <- Data %>% map(~ .x %>% modify_if(is.character, as.double))
   
 # Creating the Dataframe of Analisys
-Data <- Data %>%   enframe("Sample", "Datos")
+Data <- Data %>%  enframe("Sample", "Datos")
 
 
-# Calculating the meadian value for each sample
-Data <- Data %>% mutate(Mean_value = map_dbl(Datos,  function(df) mean(df$Force)))
+# Calculating the Median value for each sample
+Data <- Data %>% mutate(Force_Adhesion = map_dbl(Datos,  function(df) median(df$Force)))
+
+
+# Calculating the Max value of force
+Data <- Data %>% mutate(Max_force = map_dbl(Datos, function(df) max(df$Force)))
 
 
 ## Function to identify Young Modulus
+
+### Test
+#df <- Data$Datos[[1]]
+
 Young <- function(df) {
-  # Filtering the Dataframe
-  df <- df %>% filter(Course >= 1 & Course <= 30 ) # To validate the range
+  
+  # Max value for each database
+  F_max <- max(df$Force)
+  
+  # Filtering the Dataframe between Row 1 to row that the value is the max
+  
+  df <- df %>% filter(between(row_number(), 1, which(df$Force == F_max)))
+  
   # Doing the linear model
    model= lm(Force ~ Course, data = df)
    E= coefficients(model)[[2]]
@@ -66,8 +81,25 @@ Young <- function(df) {
 # Calculating the young Modulus
 Data <- Data %>% mutate(Young = map_dbl(Datos, Young))
 
-# Calculating the Max value of force
-Data <- Data %>% mutate(Max_force = map_dbl(Datos, function(Datos) max(Datos$Force)))
+
+# Calculating the young Modulus
+#Data <- Data %>% separate(col="Sample", sep = "_", into = c("1", "2", "3", "4"))
+
+
+# test
+Data$Material <- c(rep(c("PLA-TPU", "PLA-COPE"), each = 8) )
+Data$Echantillon <- c(rep(LETTERS[1], each = 2) ,
+                 "C",
+                 rep(LETTERS[2], each = 2),
+                 "C",
+                 rep(LETTERS[4], each = 2),
+                 rep(LETTERS[1:4], each = 2) )
+  
+  
+
+#Valores_medios <- Data %>% group_by(test) %>% summarise(F_mean=mean(Max_force),
+#                                                        Young_mean=mean(Young))
+
 
 ```
 
@@ -79,14 +111,33 @@ paged_table(Data %>% select(-Datos))
 ```
 
 
-# Graph
+# Graphs
+
+```{r}
+Data %>% 
+  ggplot(aes(x= Echantillon, y =Young)) +
+  geom_boxplot() +
+  facet_grid(~Material)+
+  coord_cartesian(ylim = c(0, 3))+
+  labs(y="Young Modulus (kN)", x="Echantillons") 
+  
+```
+
+
+# Line graph PLA- TPU 
 ```{r}
 
 Data %>% 
-  ggplot(aes(x=Mean_value, y = Max_force )) +
-  geom_point(aes(color=Sample)) +
-  #facet_grid( .  ~  ) +
-  labs(y="Max Load (kN)", x="Mean value") +
-  coord_cartesian(ylim = c(1, 4))
+  ggplot ()+
+    geom_line(data = Data[[2]][[1]], mapping = aes (x= Course, y=Force,  color = "red"))  +
+   geom_line(data = Data[[2]][[2]], mapping = aes (x= Course, y=Force, color = "black")) +
+  geom_line(data = Data[[2]][[3]], mapping = aes (x= Course, y=Force, color = "21.78")) +
+  geom_line(data = Data[[2]][[4]], mapping = aes (x= Course, y=Force, color = "21.83")) +
+ geom_line(data = Data[[2]][[5]], mapping = aes (x= Course, y=Force, color = "21.83")) +
+geom_line(data = Data[[2]][[6]], mapping = aes (x= Course, y=Force,color = "21.78")) +
+geom_line(data = Data[[2]][[7]], mapping = aes (x= Course, y=Force, color = "21.73")) +
+  geom_line(data = Data[[2]][[8]], mapping = aes (x= Course, y=Force, color = "21.73")) +
+  labs ( title = "PLA-TPU", y= "Load (N)", x="Extension (mm)")
+  
+  
 ```
-
